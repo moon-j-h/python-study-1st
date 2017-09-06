@@ -55,5 +55,22 @@ def main():
     g.db.close()
     return render_template("main.html", posts=posts)
 
+@app.route("/add", methods=['POST'])
+@login_required
+def add():
+    title = request.form['title']
+    post = request.form['post']
+    print("??")
+    if not title or not post:
+        flash("모든 칸 입력 하셈")
+        return redirect(url_for('main'))
+    else:
+        g.db = connect_db()
+        g.db.execute('insert into posts (title, post) values(?, ?)', [request.form['title'], request.form['post']])
+        g.db.commit()
+        g.db.close()
+        flash("포스트 성공")
+        return redirect(url_for('main'))
+
 if __name__ == "__main__":
     app.run(debug=True)
