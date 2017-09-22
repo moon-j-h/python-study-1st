@@ -1,2 +1,3 @@
 env
-project/_config.py
+flasktaskr/project/_config.py
+__pycache__
