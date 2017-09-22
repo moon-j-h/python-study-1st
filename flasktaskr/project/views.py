@@ -31,7 +31,7 @@ def login():
         if request.form['username'] != app.config["USERNAME"] or request.form['password'] != app.config['PASSWORD']:
             error = '다시 한번 확인 부탁'
             return render_template("login.html", error=error)
-        else :
+        else:
             session['logged_in'] = True
             flash("안뇽!")
             return redirect(url_for('tasks'))
