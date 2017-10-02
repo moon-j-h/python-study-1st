@@ -1,15 +1,15 @@
 
 from functools import wraps
 from flask import Flask, flash, redirect, render_template, request, session, url_for
-from forms import AddTaskForm
+from forms import AddTaskForm, RegisterForm, LoginForm
 from flask_sqlalchemy import SQLAlchemy
-
+import datetime
 
 app = Flask(__name__)
 app.config.from_object('_config')
 db = SQLAlchemy(app)
 
-from models import Task
+from models import Task, User
 
 import sqlite3
 
@@ -29,21 +29,48 @@ def login_required(test):
 @app.route('/logout/')
 def logout():
     session.pop('logged_in', None)
+    session.pop('user_id', None)
     flash("바이바이")
     return redirect(url_for('login'))
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
-    error=None
+    error = None
+    form = LoginForm(request.form)
     if request.method == 'POST':
-        if request.form['username'] != app.config["USERNAME"] or request.form['password'] != app.config['PASSWORD']:
-            error = '다시 한번 확인 부탁'
-            return render_template("login.html", error=error)
+        if form.validate_on_submit():
+            user = User.query.filter_by(name=request.form['name']).first()
+            if user is not None and user.password == request.form['password']:
+                session['logged_in'] = True
+                session['user_id'] = user.id
+                flash("안뇽!")
+                return redirect(url_for('tasks'))
+            else:
+                error = '다시 한번 확인 부탁'
         else:
-            session['logged_in'] = True
-            flash("안뇽!")
-            return redirect(url_for('tasks'))
-    return render_template('login.html')
+            error = 'id와 비밀번호는 필수!!'
+    return render_template("login.html", form=form, error=error)
+
+@app.route("/register/", methods=['GET', 'POST'])
+def register():
+    error = None
+    form = RegisterForm(request.form)
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            new_user = User(
+                form.name.data,
+                form.email.data,
+                form.password.data
+            )
+            db.session.add(new_user)
+            db.session.commit()
+            flash("가입해주셔서 감사합니다.")
+            return redirect(url_for('login'))
+        else:
+            error="조건 불만족"
+    return render_template('register.html', form=form, error=error)
+
+
 
 @app.route('/tasks/')
 @login_required
@@ -63,14 +90,15 @@ def tasks():
 def new_task():
     form = AddTaskForm(request.form)
     if request.method == 'POST':
-        print(form['due_date'].data)
         if form.validate_on_submit():
             print(form.name.data)
             new_task = Task(
                 form.name.data,
                 form['due_date'].data,
                 form.priority.data,
-                '1'
+                datetime.datetime.utcnow(),
+                '1',
+                session['user_id']
             )
             db.session.add(new_task)
             db.session.commit()
