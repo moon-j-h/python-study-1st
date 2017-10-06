@@ -4,6 +4,7 @@ from flask import Flask, flash, redirect, render_template, request, session, url
 from forms import AddTaskForm, RegisterForm, LoginForm
 from flask_sqlalchemy import SQLAlchemy
 import datetime
+from sqlalchemy.exc import IntegrityError
 
 app = Flask(__name__)
 app.config.from_object('_config')
@@ -25,6 +26,11 @@ def login_required(test):
             flash("로그인 하셈요")
             return redirect(url_for('login'))
     return wrap
+
+def flash_errors(form):
+    for field, errors in form.errors.items():
+        for error in errors:
+            flash(u"%s 필드를 다시 확인해주세요. - %s" % (getattr(form, field).label.text, error), 'error')
 
 @app.route('/logout/')
 def logout():
@@ -62,36 +68,40 @@ def register():
                 form.email.data,
                 form.password.data
             )
-            db.session.add(new_user)
-            db.session.commit()
-            flash("가입해주셔서 감사합니다.")
-            return redirect(url_for('login'))
+            try:
+                db.session.add(new_user)
+                db.session.commit()
+                flash("가입해주셔서 감사합니다.")
+                return redirect(url_for('login'))
+            except:
+                error = "이미 존재하는 닉네임/이메일 입니다."
         else:
-            error="조건 불만족"
+            error = "조건 불만족"
     return render_template('register.html', form=form, error=error)
 
+def open_tasks():
+    return db.session.query(Task).filter_by(status='1').order_by(Task.due_date.asc())
 
+def closed_tasks():
+    return db.session.query(Task).filter_by(status='0').order_by(Task.due_date.asc())
 
 @app.route('/tasks/')
 @login_required
 def tasks():
-    open_tasks = db.session.query(Task).filter_by(status='1').order_by(Task.due_date.asc())
-    closed_tasks = db.session.query(Task).filter_by(status='0').order_by(Task.due_date.asc())
-
     return render_template(
         'tasks.html',
         form=AddTaskForm(request.form),
-        open_tasks=open_tasks,
-        closed_tasks=closed_tasks
+        open_tasks=open_tasks(),
+        closed_tasks=closed_tasks()
     )
 
 @app.route("/add/", methods=['GET', 'POST'])
 @login_required
 def new_task():
+    error = None
     form = AddTaskForm(request.form)
     if request.method == 'POST':
         if form.validate_on_submit():
-            print(form.name.data)
             new_task = Task(
                 form.name.data,
                 form['due_date'].data,
@@ -103,7 +113,14 @@ def new_task():
             db.session.add(new_task)
             db.session.commit()
             flash("새로운 task 추가 완료:)")
-    return redirect(url_for('tasks'))
+            return redirect(url_for('tasks'))
+    return render_template(
+        'tasks.html',
+        form=form,
+        error=error,
+        open_tasks=open_tasks(),
+        closed_tasks=closed_tasks()
+    )
 
 @app.route("/complete/<int:task_id>")
 @login_required
