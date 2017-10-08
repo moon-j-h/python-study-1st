@@ -1,3 +1,4 @@
 env
 flasktaskr/project/_config.py
 __pycache__
+*.db

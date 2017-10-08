@@ -23,7 +23,7 @@ def login_required(test):
         if 'logged_in' in session:
             return test(*args, **kwargs)
         else:
-            flash("로그인 하셈요")
+            flash("login first.")
             return redirect(url_for('login'))
     return wrap
 
@@ -33,10 +33,11 @@ def flash_errors(form):
             flash(u"%s 필드를 다시 확인해주세요. - %s" % (getattr(form, field).label.text, error), 'error')
 
 @app.route('/logout/')
+@login_required
 def logout():
     session.pop('logged_in', None)
     session.pop('user_id', None)
-    flash("바이바이")
+    flash("Goodbye!")
     return redirect(url_for('login'))
 
 @app.route('/', methods=['GET', 'POST'])
@@ -52,7 +53,7 @@ def login():
                 flash("안뇽!")
                 return redirect(url_for('tasks'))
             else:
-                error = '다시 한번 확인 부탁'
+                error = 'Invalid username or password'
         else:
             error = 'id와 비밀번호는 필수!!'
     return render_template("login.html", form=form, error=error)
@@ -71,10 +72,10 @@ def register():
             try:
                 db.session.add(new_user)
                 db.session.commit()
-                flash("가입해주셔서 감사합니다.")
+                flash("Thanks for registering. Please login.")
                 return redirect(url_for('login'))
             except:
-                error = "이미 존재하는 닉네임/이메일 입니다."
+                error = "already exist."
         else:
             error = "조건 불만족"
     return render_template('register.html', form=form, error=error)
@@ -112,7 +113,7 @@ def new_task():
             )
             db.session.add(new_task)
             db.session.commit()
-            flash("새로운 task 추가 완료:)")
+            flash("Successfully posted.")
             return redirect(url_for('tasks'))
     return render_template(
         'tasks.html',
@@ -128,7 +129,7 @@ def complete(task_id):
     new_id = task_id
     db.session.query(Task).filter_by(task_id=new_id).update({'status': "0"})
     db.session.commit()
-    flash('task 완료!!')
+    flash('Complete!')
     return redirect(url_for('tasks'))
 
 @app.route("/delete/<int:task_id>")
@@ -137,5 +138,5 @@ def delete_entry(task_id):
     new_id = task_id
     db.session.query(Task).filter_by(task_id=new_id).delete()
     db.session.commit()
-    flash("삭제 완료!!")
+    flash("Successfully Deleted")
     return redirect(url_for('tasks'))
